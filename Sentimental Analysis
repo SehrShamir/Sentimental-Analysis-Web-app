@@ -1,0 +1,35 @@
+import fasttext
+import fasttext.util
+import pandas as pd
+import re
+import numpy as np
+from flask import Flask, request, jsonify
+
+# Load or train FastText model
+try:
+    model = fasttext.load_model("sentiment_model.bin")
+except:
+    # Train a simple FastText model (Replace with actual dataset path)
+    train_data = "sentiment_train.txt"  # This file should have labeled sentences
+    model = fasttext.train_supervised(train_data, epoch=25, lr=0.5)
+    model.save_model("sentiment_model.bin")
+
+# Initialize Flask app
+app = Flask(__name__)
+
+def preprocess_text(text):
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9\s]', '', text)
+    return text
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.get_json()
+    text = preprocess_text(data.get('text', ''))
+    prediction = model.predict(text)
+    label = prediction[0][0].replace('__label__', '')
+    confidence = float(prediction[1][0])
+    return jsonify({"sentiment": label, "confidence": confidence})
+
+if __name__ == '__main__':
+    app.run(debug=True)
